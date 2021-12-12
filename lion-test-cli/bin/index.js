@@ -1,31 +1,64 @@
 #!/usr/bin/env node
 
-const lib = require("../lib");
-const argv = require('process').argv;
+const yargs = require("yargs/yargs")
+const dedent = require('dedent');
+const pkg = require('../package.json');
 
-// 注册一个命令 lion-test-cli init --name vue-test-app
-const command = argv[2]; // init
-const options = argv.slice(3); // 目前只考虑支持一个options的情况 [--name,vue-test-app]
+const cli = yargs();
+const argv = process.argv.slice(2);
 
-if(options.length > 1){
-    let [option,param] = options;
-    option = option.replace("--","");
-    
-    if(command){
-        if(lib[command]){
-            lib[command]({option,param});
-        }else{
-            console.log("命令不存在");
-        }
-    }else{
-        console.log("请输入命令");
-    }
-}
+const context = {
+    lionVersion: pkg.version,
+};
 
-// 全局命令 --version
-if(command.startsWith("--") || command.startsWith("-")){
-    const globalOption = command.replace(/--|-/g,'');
-    if(["version","V"].includes(globalOption)){
-        console.log("version:1.0.0")
-    }
-}
+cli
+.usage("Usage：lion-test-cli [command] <options>")
+.demandCommand(1,"A command is required")
+.alias("h","help")
+.alias("v","version")
+.recommendCommands()
+.fail((err, msg) => {
+    console.log(err);
+})
+.wrap(cli.terminalWidth())
+.epilogue(dedent`
+    When a command fails, all logs are written to lerna-debug.log in the current working directory.
+
+    For more information, find our manual at https://github.com/lerna/lerna
+`)
+.options({
+    debug: {
+      type: 'boolean',
+      describe: 'Bootstrap debug mode',
+      alias: 'd',
+    },
+  })
+  .option('registry', {
+    type: 'string',
+    describe: 'Define global registry',
+    alias: 'r',
+  })
+  .group([ 'debug' ], 'Dev Options:')
+  .group([ 'registry' ], 'Extra Options:')
+  .command('init [name]', 'Do init a project', (yargs) => {
+    yargs
+      .option('name', {
+        type: 'string',
+        describe: 'Name of a project',
+        alias: 'n',
+      });
+  }, (argv) => {
+    console.log(argv);
+  })
+  .command({
+    command: 'list',
+    aliases: [ 'ls', 'la', 'll' ],
+    describe: 'List local packages',
+    builder: (yargs) => {
+    },
+    handler: (argv) => {
+        console.log(argv);
+    },
+  })
+  .parse(argv, context);
+
